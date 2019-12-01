@@ -1,0 +1,49 @@
+---
+- name: "kill docker container {{ coredns.name | default('coredns') }}"
+  shell: "docker kill {{ coredns.name | default('coredns') }}"
+  ignore_errors: yes
+
+- name: "remove docker container {{ coredns.name | default('coredns') }}"
+  shell: "docker rm -v {{ coredns.name | default('coredns') }}"
+  ignore_errors: yes
+
+- name: "ufw allow {{ coredns.ports }}"
+  ufw:
+    rule: allow
+    port: "{{ item.split('/')[0] }}"
+    proto: "{%- if (item.split('/') | length) >1 -%} {{ item.split('/')[1] }} {%- else -%} tcp {%- endif -%}"
+    delete: yes
+  loop: "{{ coredns.ports }}"
+
+- name: "remove lvs.conf from lvs real server "
+  file:
+   path: "/etc/sysctl.d/lvs.conf"
+   state: absent
+  when: clean is defined and clean=="yes"
+
+- name: remove config kernel parameter
+  shell: "echo 0 > /proc/sys/net/ipv4/conf/lo/arp_ignore; \
+          echo 0 > /proc/sys/net/ipv4/conf/lo/arp_announce; \
+          echo 0 > /proc/sys/net/ipv4/conf/all/arp_ignore; \
+          echo 0 > /proc/sys/net/ipv4/conf/all/arp_announce; \
+          ip addr del {{ coredns.lvs.vip }}/32 broadcast {{ coredns.lvs.vip }} label lo:{{ coredns.lvs.vip.split('.')[3] }} dev lo
+         "
+  ignore_errors: yes
+#  when: clean is defined and clean=="yes"
+
+- name: "remove docker image {{ coredns.image }}"
+  shell: "docker rmi {{ coredns.image }}"
+  ignore_errors: yes
+  when: clean is defined and clean=="yes"
+
+- name: remove coredns folder and data
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - "{{ coredns.local.dir }}"
+  when: clean is defined and clean=="yes"
+
+#- name: remove corednsctl
+#  include: remove_corednsctl.yml
+#  when: clean is defined and clean=="yes"

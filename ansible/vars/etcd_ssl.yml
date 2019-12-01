@@ -1,0 +1,58 @@
+app:
+  name: "coredns_etcd"
+  ssl_dir: "/mnt/data/coredns_etcd/etcd/ssl"
+  copy_certs:
+    - "ca.pem"
+    - "server.pem"
+    - "server-key.pem"
+    - "peer.pem"
+    - "peer-key.pem"
+    - "client.pem"
+    - "client-key.pem"
+ssl:
+  subject:
+    O: "Moqi"
+    OU: "Moqi IT"
+    L: "SH"
+    ST: "SH"
+    C: "CN"
+  key:
+    algo: "rsa"
+    size: "2048"
+  cert:
+    expiry: 876000h
+  ca:
+    CN: "Self CA"
+  client:
+    CN: "client"
+    hosts:
+      - k1
+      - k2
+      - k3
+      - k4
+      - 192.168.1.21
+      - 192.168.1.22
+      - 192.168.1.23
+      - 192.168.1.24
+  peer:
+    CN: "Peer"
+    hosts:
+      - k1
+      - k2
+      - k3
+      - k4
+      - 192.168.1.21
+      - 192.168.1.22
+      - 192.168.1.23
+      - 192.168.1.24
+  server:
+    CN: "Server"
+    hosts:
+      - k1
+      - k2
+      - k3
+      - k4
+      - 192.168.1.21
+      - 192.168.1.22
+      - 192.168.1.23
+      - 192.168.1.24

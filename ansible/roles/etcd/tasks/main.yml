@@ -1,0 +1,12 @@
+---
+- name: get host ip
+  set_fact:
+    host_ip: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}" 
+
+- name: "execute action: {{ action }}"
+  include: "actions/{{ action }}.yml"
+  when: action not in ["install","remove","test"]
+
+- name: "execute action: {{ action }}"
+  include: "actions/{{ action }}_etcd.yml"
+  when: action in ["install","remove","test"]

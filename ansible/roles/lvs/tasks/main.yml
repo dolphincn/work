@@ -1,0 +1,8 @@
+---
+- name: "execute action: {{ action }}"
+  include: "actions/{{ action }}.yml"
+  when: action not in ["install","remove","test"]
+
+- name: "execute action: {{ action }}"
+  include: "actions/{{ action }}_lvs.yml"
+  when: action in ["install","remove","test"]

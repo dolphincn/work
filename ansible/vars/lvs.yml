@@ -1,0 +1,44 @@
+---
+lvs:
+  name: "lvs"
+  version: "1.9"
+  image: "lvs:1.9"
+  imagefile: "lvs1.9.tar"
+  local:
+    dir: "/mnt/data/coredns_etcd/lvs"
+  container:
+    dir: "/etc/keepalived"
+  ports:
+    - "53/tcp"
+    - "53/udp"
+  keepalived:
+    auto_config: true
+    auth_pass: 
+    vips:
+      - ip: "192.168.1.30"
+        netmask: "32"
+        broadcast: "192.168.2.255"
+    master:
+      hostname: "k1"
+      interface: "ens3"
+      ip: "192.168.1.21"
+    backup:
+      - hostname: "k2"
+        interface: "ens3"
+        ip: "192.168.1.22"
+  virtulservers:
+    - vip: 192.168.1.30
+      port: 53
+      protocol: udp
+      realservers: 192.168.1.23:53,192.168.1.24:53
+    - vip: 192.168.1.30
+      port: 53
+      protocol: tcp
+      realservers: 192.168.1.23:53,192.168.1.24:53
+  loadbalance:
+    kind: DR
+    algo: wrr
+  check:
+    hostname: "test.test.ai"
+    ip: "192.168.2.1"
+  time_out: "10 10 10"

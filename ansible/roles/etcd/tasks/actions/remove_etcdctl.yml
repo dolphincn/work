@@ -1,0 +1,5 @@
+---
+- name: "remove file /usr/local/bin/etcdctl"
+  file:
+   path: "/usr/local/bin/etcdctl"
+   state: absent

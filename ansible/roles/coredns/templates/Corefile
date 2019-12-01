@@ -1,0 +1,19 @@
+.:{{ coredns.dnsport | default('53') }} {
+    etcd {{ coredns.domain }} in-addr.arpa {
+        stubzones
+        path {{ coredns.path | default('/coredns') }}
+        endpoint {% for _tmp_host in etcd_cluster_endpoints_with_local %} {{ coredns.etcd.protocol }}://{{ _tmp_host }}:{{ coredns.etcd.port }} {% endfor %}
+
+        #upstream /etc/hosts
+        #fallthrough
+        # tls CERT KEY CACERT
+        tls {{ coredns.container.dir }}/ssl/client.pem {{ coredns.container.dir }}/ssl/client-key.pem {{ coredns.container.dir }}/ssl/ca.pem
+    }
+    errors
+    #whoami
+    log
+    prometheus :9100
+    cache 120
+    loadbalance
+    #forward . /etc/hosts
+}

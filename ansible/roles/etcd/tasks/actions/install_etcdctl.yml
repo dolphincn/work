@@ -1,0 +1,8 @@
+---
+- name: "copy etcdctl file"
+  copy:
+   src: "etcdctl"
+   dest: "/usr/local/bin/"
+   owner: root
+   group: root
+   mode: 0755

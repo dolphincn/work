@@ -1,0 +1,24 @@
+---
+- name: create peer_csr.json
+  template:
+    src: "{{ item }}"
+    dest: "{{ ssl.cert.dir }}"
+    owner: root
+    group: root
+    mode: 0640
+  with_items:
+   - peer_csr.json 
+
+- name: debug
+  debug: msg="{{ ssl.cert.dir }}"
+
+- name: ls
+  shell: "ls {{ ssl.cert.dir }}/peer_csr.json"
+
+- name: create peer cert
+  shell: "cd {{ ssl.cert.dir }} \
+          && cfssl gencert --ca {{ ssl.cert.dir }}/ca.pem \
+                           --ca-key {{ ssl.cert.dir }}/ca-key.pem \
+                           --config {{ ssl.cert.dir }}/ca_profiles.json \
+                           -profile=peer \
+                           {{ ssl.cert.dir }}/peer_csr.json | cfssljson -bare peer -"

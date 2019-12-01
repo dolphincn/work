@@ -1,0 +1,16 @@
+---
+- name: "set ssl_cert_dir"
+  set_fact: 
+    ssl_cert_dir: "{{ role_path }}/files/ssl/{{ app.name }}"
+
+- name: display ssl_cert_dir
+  debug: msg="{{ ssl_cert_dir }}"
+  ignore_errors: yes
+
+- name: "excute action: {{ action }}"
+  include: "actions/cert.yml"
+  when: action in ["server","peer","client"]
+
+- name: "execute action: {{ action }}"
+  include: "actions/{{ action }}.yml"
+  when: action not in ["server","peer","client"]

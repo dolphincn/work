@@ -1,0 +1,31 @@
+---
+- name: "copy lvs_dr_rs.conf for lvs real server "
+  copy:
+   src: "lvs_dr_rs.conf"
+   dest: "/etc/sysctl.d/"
+   owner: root
+   group: root
+   mode: 0644
+
+
+- name: config kernel parameter for lvs real server
+  shell: "echo 1 > /proc/sys/net/ipv4/ip_nonlocal_bind; \
+         echo 1 > /proc/sys/net/ipv4/conf/lo/arp_ignore; \
+         echo 2 > /proc/sys/net/ipv4/conf/lo/arp_announce; \
+         echo 1 > /proc/sys/net/ipv4/conf/all/arp_ignore; \
+         echo 2 > /proc/sys/net/ipv4/conf/all/arp_announce; \
+        "
+
+- name: "copy labello.service for lvs real server "
+  template:
+   src: "labello.service"
+   dest: "/etc/systemd/system/"
+   owner: root
+   group: root
+   mode: 0644
+
+- name: systemctl daemon-reload
+  shell: systemctl daemon-reload
+
+- name: restart labelo
+  service: name=labello state=restarted enabled=yes

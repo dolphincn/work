@@ -1,0 +1,82 @@
+---
+- hosts: "{{ host }}"
+  remote_user: root
+  become: yes
+  become_method: sudo
+  become_user: root
+  vars_files:
+    - vars/etcd_ssl.yml
+    - vars/etcd.yml
+    - vars/coredns.yml
+
+  roles:
+    - role: "etcd"
+      action: "remove_etcdctl"
+      tags:
+        - coredns
+        - etcdctl
+        - remove
+    - role: "etcd"
+      action: "install_etcdctl"
+      tags:
+        - coredns
+        - etcdctl
+        - install
+    - role: "ssl"
+      action: "copy"
+      tags:
+        - coredns
+        - copy
+    - role: "coredns"
+      action: "remove"
+      tags:
+        - coredns
+        - remove
+    - role: "coredns"
+      action: "install"
+      tags:
+        - coredns
+        - install
+    - role: "coredns"
+      action: "import"
+      tags:
+        - coredns
+        - import
+      run_once: yes
+      delegate_to: "{{ ansible_play_hosts | first }}"
+      when: import is defined and import=="yes"
+    - role: "coredns"
+      action: "test"
+      tags:
+        - coredns
+        - test
+      run_once: yes
+      delegate_to: "{{ ansible_play_hosts | first }}"
+    - role: "coredns"
+      action: "add"
+      tags:
+        - "add"
+      run_once: yes
+      delegate_to: "{{ ansible_play_hosts | first }}"
+      when: items is defined and items != ""
+    - role: "coredns"
+      action: "delete"
+      tags:
+        - "delete"
+      run_once: yes
+      delegate_to: "{{ ansible_play_hosts | first }}"
+      when: items is defined and items != ""
+    - role: "coredns"
+      action: "add_from_file"
+      tags:
+        - "add"
+      run_once: yes
+      delegate_to: "{{ ansible_play_hosts | first }}"
+      when: file is defined and file != ""
+    - role: "coredns"
+      action: "delete_from_file"
+      tags:
+        - "delete"
+      run_once: yes
+      delegate_to: "{{ ansible_play_hosts | first }}"
+      when: file is defined and file != ""

@@ -1,0 +1,34 @@
+---
+- name: kill etcd docker container
+  shell: "docker kill {{ etcd.name | default('etcd') }}"
+  ignore_errors: yes
+
+- name: rm etcd docker container
+  shell: "docker rm -v {{ etcd.name | default('etcd') }}"
+  ignore_errors: yes
+
+
+- name: "ufw delete allow {{ etcd.client.port }},{{ etcd.peer.port }}/tcp"
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+    delete: yes
+  loop:
+    - "{{ etcd.client.port }},{{ etcd.peer.port }}"
+
+- name: rm etcd docker image
+  shell: "docker rmi {{ etcd.image }}"
+  ignore_errors: True
+  when: clean is defined and clean=="yes"
+
+- name: remove etcd folder and data
+  file:
+    path: "{{ etcd.local.dir }}"
+    state: absent
+  when: clean is defined and clean=="yes"
+
+
+- name: remove etcdctl
+  include: remove_etcdctl.yml
+  when: clean is defined and clean=="yes"

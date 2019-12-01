@@ -1,0 +1,25 @@
+---
+- name: "Mkdir {{ ssl_cert_dir }} "
+  file:
+    path: "{{ item }}"
+    state: directory 
+    owner: root
+    group: root
+    mode: 0750
+  with_items:
+   - "{{ ssl_cert_dir }}"
+    
+- name: create ca_csr.json ca_profiles.json
+  template:
+    src: "{{ item }}"
+    dest: "{{ ssl_cert_dir }}"
+    owner: root
+    group: root
+    mode: 0640
+  with_items:
+   - ca_csr.json
+   - ca_profiles.json
+
+- name: create self signed CA
+  shell: "cd {{ ssl_cert_dir}} \
+          && cfssl gencert -initca ca_csr.json | cfssljson -bare ca - "

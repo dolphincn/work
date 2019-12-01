@@ -1,0 +1,17 @@
+{
+    "CN": "{{ ssl.ca.CN | default('CA') }}",
+    "key": {
+        "algo": "{{ ssl.key.algo }}",
+        "size": {{ ssl.key.size }}
+    },
+    "names": [
+        {
+        "O": "{{ ssl.subject.O | default('Moqi') }}",
+        "OU": "{{ ssl.subject.OU | default('Moqi IT') }}",
+        "L": "{{ ssl.subject.L | default('SH') }}",
+        "ST": "{{ ssl.subject.ST | default('SH') }}",
+        "C": "{{ ssl.subject.C | default('CN') }}"
+        }
+    ]
+}
+

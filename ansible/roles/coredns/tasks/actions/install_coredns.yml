@@ -1,0 +1,81 @@
+---
+- name: "create folder {{ coredns.local.dir }} and {{ etcd.coredns.dir }}/ssl"
+  file:
+    path: "{{ item }}"
+    owner: root
+    group: root
+    mode: 0644
+    state: directory
+  with_items:
+    - "{{ coredns.local.dir }}"
+    - "{{ coredns.local.dir }}/data"
+    - "{{ coredns.local.dir }}/ssl"
+
+
+- name: "copy coredns image file: {{ coredns.imagefile }}"
+  copy:
+   src: "{{ coredns.imagefile }}"
+   dest: "{{ coredns.local.dir }}"
+   owner: root
+   group: root
+   mode: 0644
+
+- name: "copy coredns config"
+  template:
+    src: Corefile
+    dest: "{{ coredns.local.dir }}/"
+    owner: root
+    group: root
+    mode: 0644
+
+- name: "load docker image {{ coredns.local.dir }}/{{ coredns.imagefile }}"
+  shell: "docker load -i {{ coredns.local.dir }}/{{ coredns.imagefile }}"
+  ignore_errors: True
+
+
+- name: "ufw allow {{ coredns.ports }}"
+  ufw:
+    rule: allow
+    port: "{{ item.split('/')[0] }}"
+    proto: "{%- if (item.split('/') | length) >1 -%} {{ item.split('/')[1] }} {%- else -%} tcp {%- endif -%}"
+  loop: "{{ coredns.ports }}"
+
+#- name: for lvs dr
+#  include: lvs_dr.yml
+#  when: lvs is defined and (lvs | lower )=="dr"
+  
+- name: run coredns container
+  shell: 'docker run -d --name {{ coredns.name | default("coredns") }} \
+          --restart always \
+          --log-opt max-size=300M \
+          --log-opt max-file=2 \
+          {% for _tmp_port in coredns.ports %}
+          -p {{ _tmp_port.split("/")[0] }}:{{ _tmp_port.split("/")[0] }} {%- if (_tmp_port.split("/") | length)>1 -%} /{{ _tmp_port.split("/")[1] }} {%- endif -%} \
+          {% endfor %}
+          -v /etc/localtime:/etc/localtime:ro \
+          -v /etc/timezone:/etc/timezone:ro \
+          -v {{ coredns.local.dir }}:{{ coredns.container.dir }} \
+          -w {{ coredns.local.dir }} \
+          {{ coredns.image }} \
+          -conf {{ coredns.container.dir }}/Corefile -dns.port {{ coredns.dnsport | default("53") }}
+         '
+
+- name: "add test dns: {{ coredns.test.hostname }}:{{ coredns.test.ip }}"
+  shell: "export ETCDCTL_API=3; \
+          etcdctl --endpoints={{ coredns.etcd.protocol }}://{{ coredns.etcd.endpoints | first }}:{{ coredns.etcd.port }} \
+          --cacert={{ coredns.local.dir }}/ssl/ca.pem \
+          --cert={{ coredns.local.dir }}/ssl/client.pem \
+          --key={{ coredns.local.dir }}/ssl/client-key.pem \
+          put {{ coredns.path | default('/coredns') }}/{{ key_prefix }}/{{ coredns.test.hostname }} \"{\\\"host\\\":\\\"{{ coredns.test.ip }}\\\"}\"
+         "
+  when: coredns.test.ip is defined
+
+- name: "add test dns ptr: {{ coredns.test.hostname }}:{{ coredns.test.ip }}"
+  shell: "export ETCDCTL_API=3; \
+          etcdctl --endpoints={{ coredns.etcd.protocol }}://{{ coredns.etcd.endpoints | first }}:{{ coredns.etcd.port }} \
+          --cacert={{ coredns.local.dir }}/ssl/ca.pem \
+          --cert={{ coredns.local.dir }}/ssl/client.pem \
+          --key={{ coredns.local.dir }}/ssl/client-key.pem \
+          put {{ coredns.path | default('/coredns') }}/arpa/in-addr/{{ coredns.test.ip.split('.') | join('/') }} \"{\\\"host\\\":\\\"{{ coredns.test.hostname }}.{{ coredns.domain }}\\\"}\"
+         "
+  when: coredns.test.ip is defined

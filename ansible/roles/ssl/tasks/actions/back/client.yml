@@ -1,0 +1,18 @@
+---
+- name: create client_csr.json
+  template:
+    src: "{{ item }}"
+    dest: "{{ ssl.cert.dir }}"
+    owner: root
+    group: root
+    mode: 0640
+  with_items:
+   - client_csr.json 
+
+- name: create client cert
+  shell: "cd {{ ssl.cert.dir }} \
+          && cfssl gencert --ca {{ ssl.cert.dir }}/ca.pem \
+                           --ca-key {{ ssl.cert.dir }}/ca-key.pem \
+                           --config {{ ssl.cert.dir }}/ca_profiles.json \
+                           -profile=client \
+                           {{ ssl.cert.dir }}/client_csr.json | cfssljson -bare client -"

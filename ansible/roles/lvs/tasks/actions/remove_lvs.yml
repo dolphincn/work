@@ -1,0 +1,75 @@
+---
+- name: "kill docker container  {{ lvs.name | default('lvs') }}" 
+  shell: "docker stop {{ lvs.name | default('lvs') }}"
+  ignore_errors: yes
+
+- name: "remove docker container  {{ lvs.name | default('lvs') }}"
+  shell: "docker rm -v {{ lvs.name | default('lvs') }}"
+  ignore_errors: yes
+
+- name: "remove folder  for lvs"
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - "{{ lvs.local.dir }}"
+
+- name: "ufw delete allow {{ lvs.ports }}/tcp"
+  ufw:
+    rule: allow
+    port: "{{ item.split('/')[0] }}"
+    proto: "{%- if (item.split('/') | length) >1 -%} {{ item.split('/')[1] }} {%- else -%} tcp {%- endif -%}"
+    delete: yes
+  loop: "{{ lvs.ports }}"
+
+- name: "ufw delete allow vrrp from 224.0.100.{{ lvs.keepalived.vips[0].ip.split('.')[3] }}"
+  ufw:
+    rule: allow
+    from: "224.0.100.{{ lvs.keepalived.vips[0].ip.split('.')[3] }}"
+    delete: yes
+    proto: any
+
+- name: "remove docker image {{ lvs.image }}"
+  shell: "docker rmi {{ lvs.image }}"
+  ignore_errors: True
+  when: clean is defined and clean=="yes"
+
+- name: "remove config file for lvs"
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - "/etc/sysctl.d/lvs.conf"
+    - "/etc/modprobe.d/iptables.conf"
+  when: clean is defined and clean=="yes"
+
+- name: remove "ipvsadm" package
+  apt:
+    name: "{{ item }}"
+    state: absent
+  loop:
+    - ipvsadm
+  when: clean is defined and clean=="yes"
+
+- name: config nf_conntrack
+  lineinfile:
+    path: /etc/modules
+    regexp: "^{{ item }}$"
+    line: "{{ item }}"
+    state: absent
+  with_items:
+    - nf_conntrack
+    - nf_conntrack_ipv4
+    - ip_vs
+    - ip_vs_rr
+    - ip_vs_wrr
+    - ip_vs_sh
+    - ip_vs_wlc
+    - ip_vs_lblc
+    - ip_vs_lblcr
+    - ip_vs_lc
+    - ip_vs_fo
+  when: clean is defined and clean=="yes"
+
+
+

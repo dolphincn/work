@@ -1,0 +1,14 @@
+---
+- name: import dns
+  etcd3:
+    key: "test"
+    vaule: "thisistest123"
+    state: "preset"
+    ca_cert: "{{ coredns.local.ssl_dir }}/ca.pem"
+    client_cert: "{{ coredns.local.ssl_dir }}/client.pem"
+    client_key: "{{ coredns.local.ssl_dir }}/client_key.pem"
+    host: "{{ coredns.etcd.endpoints | first }}"
+    port: "{{ coredns.etcd.port }}"
+#  with_lines: cat {{ playbook_dir }}/vars/coredns_hosts
+#  with_items: "{{ lookup('file','./vars/coredns_hosts').splitlines() }}"
+

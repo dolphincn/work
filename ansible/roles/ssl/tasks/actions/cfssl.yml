@@ -1,0 +1,15 @@
+---
+- name: "opy ssl file"
+  copy:
+    src: "{{ item }}"
+    dest: "/usr/bin/"
+    owner: root
+    group: root
+    mode: 0755
+  become: yes
+  with_items:
+    - cfssl
+    - cfssljson
+    - cfssl-certinfo
+
+

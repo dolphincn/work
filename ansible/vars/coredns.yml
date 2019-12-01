@@ -1,0 +1,38 @@
+---
+app:
+  name: "coredns_etcd"
+  ssl_dir: "/mnt/data/coredns_etcd/coredns/ssl"
+  copy_certs:
+    - ca.pem
+    - client.pem
+    - client-key.pem
+coredns:
+  name: "coredns"
+  version: "1.6.5"
+  image: "coredns:1.6.5"
+  imagefile: "coredns1.6.5.tar"
+  local:
+    dir: "/mnt/data/coredns_etcd/coredns"
+    #data_dir: "/mnt/data/coredns_etcd/coredns/data"
+    #ssl_dir: "/mnt/data/coredns_etcd/corends/ssl"
+  container:
+    dir: "/mnt/data/coredns"
+    #data_dir: "/mnt/data/coredns/data"
+    #ssl_dir: "/mnt/data/corends/ssl"
+  dnsport: 53
+  ports:
+    - "53/tcp"
+    - "53/udp"
+    - "9100/tcp"
+  domain: "test.ai"
+  test:
+    ip: 192.168.2.1
+    hostname: "test"
+    dns_server_ip: "192.168.1.23"
+  etcd:
+   port: "2379"
+   protocol: "https"
+   endpoints:
+     - 192.168.1.21
+     - 192.168.1.22
+     - 192.168.1.23

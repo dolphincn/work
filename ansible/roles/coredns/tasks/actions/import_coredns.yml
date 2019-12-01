@@ -1,0 +1,25 @@
+---
+- name: import dns
+  shell: "export ETCDCTL_API=3; \
+          etcdctl --endpoints={{ coredns.etcd.protocol }}://{{ coredns.etcd.endpoints | first }}:{{ coredns.etcd.port }} \
+          --cacert={{ coredns.local.dir }}/ssl/ca.pem \
+          --cert={{ coredns.local.dir }}/ssl/client.pem \
+          --key={{ coredns.local.dir }}/ssl/client-key.pem \
+          put {{ coredns.path | default('/coredns') }}/{{ key_prefix }}/{{ item.split()[1] }} \"{\\\"host\\\":\\\"{{ item.split()[0] }}\\\"}\"
+         "
+  with_items: "{{ lookup('file','./vars/coredns_hosts').splitlines() }}"
+#  run_once: true
+#  delegate_to: "{{ ansible_play_hosts | first }}"
+
+
+- name: import dns ptr
+  shell: "export ETCDCTL_API=3; \
+          etcdctl --endpoints={{ coredns.etcd.protocol }}://{{ coredns.etcd.endpoints | first }}:{{ coredns.etcd.port }} \
+          --cacert={{ coredns.local.dir }}/ssl/ca.pem \
+          --cert={{ coredns.local.dir }}/ssl/client.pem \
+          --key={{ coredns.local.dir }}/ssl/client-key.pem \
+          put {{ coredns.path | default('/coredns') }}/arpa/in-addr/{{ item.split()[0].split('.') | join('/') }} \"{\\\"host\\\":\\\"{{ item.split()[1] }}.{{ coredns.domain }}\\\"}\"
+         "
+  with_items: "{{ lookup('file','./vars/coredns_hosts').splitlines() }}"
+#  run_once: true
+#  delegate_to: "{{ ansible_play_hosts | first }}"

@@ -1,0 +1,27 @@
+---
+etcd:
+  name: "coredns_etcd"
+  version: "v3.4.3"
+  image: "etcd:v3.4.3"
+  file: "etcdv3.4.3.tar"
+  local:
+    dir: "/mnt/data/coredns_etcd/etcd"
+    #data_dir: "/mnt/data/coredns_etcd/etcd/data"
+    #wal_dir: "/mnt/data/coredns_etcd/etcd/wal"
+    #ssl_dir: "/mnt/data/coredns_etcd/ssl"
+  container:
+    dir: "/mnt/data/etcd"
+    #data_dir: "/mnt/data/etcd/data"
+    #wal_dir: "/mnt/data/etcd/wal"
+    #ssl_dir: "/mnt/data/ssl"
+  client:
+    protocol: "https"
+    port: 2379
+  peer:
+    protocol: "https"
+    port: 2380
+  cluster:
+    token: "Etcd-Cluster-Token-9486-7359"
+    state: "new"
+    minimum_members_count: 3
+    endpoints: "k1=https://192.168.1.21:2380,k2=https://192.168.1.22:2380,k3=https://192.168.1.23:2380"

@@ -1,0 +1,86 @@
+---
+etcd:
+  version: "v3.1.1"
+  local: 
+     dir: "/mnt/ssd/coredns_etcd/etcd"
+  container:
+     dir: "/mnt/data/etcd/"
+  image: "etcd:{{ etcd.version }}"
+  client:
+    protocol: "http"
+    port: 2379
+    port_container: 2379
+    address: "{{ lookup('dig', ansible_ssh_host) }}"
+    listen_urls:
+     - "{{ etcd.client.protocol }}://0.0.0.0:{{ etcd.client.port.container }}"
+    advertise_urls:
+     - "{{ etcd.client.protocol }}://{{ etcd.client.address }}:{{ etcd.client.port }}"
+    local_url: "{{ etcd.client.protocol }}://127.0.0.1:{{ etcd.client.port }}"
+    timeout: 60  # in seconds
+    delay: 5
+    retries: "{{ (etcd.client.timeout | int / etcd.client.delay | int) | int }}"
+    version_regex: "[\\s\\S]*VERSION:\\s*(\\d+\\.\\d+\\.\\d+)[\\s\\S]*"
+    endpoint_health_regex: >-
+      ^{{ etcd.client.protocol }}://\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:{{ etcd.client.port }}
+      is healthy: successfully committed proposal: took = \d*\.\d*ms$
+  peer:
+    protocol: "http"
+    port: 2380
+    port_container: 2380
+    address: "{{ etcd.client.address }}"
+    listen_urls:
+      - "{{ etcd.peer.protocol }}://0.0.0.0:{{ etcd.peer.port.container }}"
+    advertise_urls:
+      - "{{ etcd.peer.protocol }}://{{ etcd.peer.address }}:{{ etcd.peer.port }}"
+  cluster:
+    token: "Etcd-Cluster-Token-9486-7359"
+    minimum_members_count: 3
+    members: "{{ ansible_play_hosts }}"
+
+    client_endpoints: >-
+      {% for _tmp_member in etcd.cluster.members -%}
+      {{ etcd.client.protocol }}://{{ lookup('dig', _tmp_member) }}:{{ etcd.client.port }}
+      {%- if not loop.last %},{% endif %}
+      {%- endfor %}
+
+    # current cluster state
+    # _result_etcd_cluster_current_members - registered by an etcdctl command
+    current_members: >-
+      {% if _result_etcd_cluster_current_members is defined and _result_etcd_cluster_current_members.rc == 0 -%}
+      {{ (_result_etcd_cluster_current_members.stdout | from_json).members }}
+      {%- else -%}
+      []
+      {%- endif %}
+    current_members_count: "{{ etcd.cluster.current_members | length }}"
+    current_is_member: "{{ inventory_hostname in (etcd.cluster.current_members | map(attribute='name') | list) }}"
+    current_is_new: >-
+      {{
+      hostvars[ansible_play_hosts | first]._result_etcd_cluster_current_members.rc != 0
+      or
+      (hostvars[ansible_play_hosts | first]._result_etcd_cluster_current_members.stdout | from_json).members | length == 0
+      }}
+    current_state: "{{ etcd.cluster.current_is_new | bool | ternary('new', 'existing') }}"
+    current_client_endpoints: >-
+      {% for _tmp_etcd_cluster_current_member in etcd.cluster.current_members -%}
+      {{ _tmp_etcd_cluster_current_member.clientURLs | first }}
+      {%- if not loop.last %},{% endif %}
+      {%- endfor %}
+    current_specification: >-
+      {% if (etcd.cluster.current_is_new | bool) -%}
+
+      {% for _tmp_etcd_cluster_member in etcd.cluster_members -%}
+      {{ _tmp_etcd_cluster_member }}={{ etcd.peer.protocol }}://{{ etcd.peer.address }}:{{ etcd.peer.port }}
+      {%- if not loop.last %},{% endif %}
+      {%- endfor %}
+
+      {%- else -%}
+
+      {% for _tmp_etcd_cluster_current_member in etcd.cluster.current_members -%}
+      {{ _tmp_etcd_cluster_current_member.name }}={{
+      _tmp_etcd_cluster_current_member.peerURLs | first
+      }},
+      {%- endfor -%}
+      {{ inventory_hostname }}={{ etcd.peer.protocol }}://{{ etcd.peer.address }}:{{ etcd.peer.port }}
+
+      {%- endif %}
+

@@ -1,0 +1,25 @@
+---
+- name: "delete dns: {{ items }}"
+  shell: "export ETCDCTL_API=3; \
+          etcdctl --endpoints={{ coredns.etcd.protocol }}://{{ coredns.etcd.endpoints | first }}:{{ coredns.etcd.port }} \
+          --cacert={{ coredns.local.dir }}/ssl/ca.pem \
+          --cert={{ coredns.local.dir }}/ssl/client.pem \
+          --key={{ coredns.local.dir }}/ssl/client-key.pem \
+          del {{ coredns.path | default('/coredns') }}/{{ key_prefix }}/{{ item.split(':')[0] }}
+         "
+  with_items: "{{ items.split(',') }}"
+#  run_once: true
+#  delegate_to: "{{ ansible_play_hosts | first }}"
+
+
+- name: "delete dns ptr: {{ items }}"
+  shell: "export ETCDCTL_API=3; \
+          etcdctl --endpoints={{ coredns.etcd.protocol }}://{{ coredns.etcd.endpoints | first }}:{{ coredns.etcd.port }} \
+          --cacert={{ coredns.local.dir }}/ssl/ca.pem \
+          --cert={{ coredns.local.dir }}/ssl/client.pem \
+          --key={{ coredns.local.dir }}/ssl/client-key.pem \
+          del {{ coredns.path | default('/coredns') }}/arpa/in-addr/{{ item.split(':')[1].split('.') | join('/') }}
+         "
+  with_items: "{{ items.split(',') }}"
+#  run_once: true
+#  delegate_to: "{{ ansible_play_hosts | first }}"

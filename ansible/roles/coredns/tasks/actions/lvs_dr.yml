@@ -1,0 +1,27 @@
+---
+- name: remove config kernel parameter
+  shell: "echo 0 > /proc/sys/net/ipv4/conf/lo/arp_ignore; \
+          echo 0 > /proc/sys/net/ipv4/conf/lo/arp_announce; \
+          echo 0 > /proc/sys/net/ipv4/conf/all/arp_ignore; \
+          echo 0 > /proc/sys/net/ipv4/conf/all/arp_announce; \
+          ip addr del {{ coredns.lvs.vip }}/32 broadcast {{ coredns.lvs.vip }} label lo:{{ coredns.lvs.vip.split('.')[3] }} dev lo
+         "
+  ignore_errors: yes
+
+- name: "copy lvs.conf for lvs real server "
+  copy:
+   src: "lvs.conf"
+   dest: "/etc/sysctl.d/"
+   owner: root
+   group: root
+   mode: 0644
+
+
+- name: config kernel parameter for lvs real server
+  shell: "echo 1 > /proc/sys/net/ipv4/ip_nonlocal_bind; \
+         echo 1 > /proc/sys/net/ipv4/conf/lo/arp_ignore; \
+         echo 2 > /proc/sys/net/ipv4/conf/lo/arp_announce; \
+         echo 1 > /proc/sys/net/ipv4/conf/all/arp_ignore; \
+         echo 2 > /proc/sys/net/ipv4/conf/all/arp_announce; \
+         ip addr add {{ coredns.lvs.vip }}/32 broadcast {{ coredns.lvs.vip }} label lo:{{ coredns.lvs.vip.split('.')[3] }} dev lo
+        "

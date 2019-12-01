@@ -1,0 +1,32 @@
+---
+- name: set etcd key prefix for coredns key
+  set_fact:
+    key_prefix: "{{ coredns.domain.split('.') | reverse | list | join('/') }}"
+
+- name: test etcd member list
+  shell: "export ETCDCTL_API=3; \
+          etcdctl --endpoints={{ coredns.etcd.protocol }}://127.0.0.1:{{ coredns.etcd.port }} \
+          --cacert={{ coredns.local.dir }}/ssl/ca.pem \
+          --cert={{ coredns.local.dir }}/ssl/client.pem \
+          --key={{ coredns.local.dir }}/ssl/client-key.pem \
+          member list
+          "
+  register: has_local_etcd
+  ignore_errors: yes
+
+- name: set etcd endpoint
+  set_fact:
+    etcd_cluster_endpoints_with_local: "{{ coredns.etcd.endpoints | shuffle}}"
+
+- name: set etcd endpoint
+  set_fact:
+    etcd_cluster_endpoints_with_local: "{{ ['127.0.0.1'] + etcd_cluster_endpoints_with_local }}"
+  when: has_local_etcd is succeeded 
+
+- name: "execute action: {{ action }}"
+  include: "actions/{{ action }}.yml"
+  when: action not in ["install","remove","test","import","add","delete"]
+
+- name: "execute action: {{ action }}"
+  include: "actions/{{ action }}_coredns.yml"
+  when: action in ["install","remove","test","import","add","delete"]

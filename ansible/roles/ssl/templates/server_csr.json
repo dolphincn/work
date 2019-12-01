@@ -1,0 +1,23 @@
+{
+    "CN": "{{ ssl.server.CN | default('Server') }}",
+    "key": {
+        "algo": "{{ ssl.key.algo }}",
+        "size": {{ ssl.key.size }}
+    },
+    "names": [
+        {
+        "O": "{{ ssl.subject.O | default('Moqi') }}",
+        "OU": "{{ ssl.subject.OU | default('Moqi IT') }}",
+        "L": "{{ ssl.subject.L | default('SH') }}",
+        "ST": "{{ ssl.subject.ST | default('SH') }}",
+        "C": "{{ ssl.subject.C | default('CN') }}"
+        }
+    ],
+    "hosts": [
+      {% for host in ssl.server.hosts -%}
+      "{{ host }}",
+      {% endfor -%}
+      "127.0.0.1",
+      "localhost"
+    ]
+}

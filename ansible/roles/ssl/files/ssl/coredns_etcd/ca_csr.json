@@ -1,0 +1,17 @@
+{
+    "CN": "Self CA",
+    "key": {
+        "algo": "rsa",
+        "size": 2048
+    },
+    "names": [
+        {
+        "O": "Moqi",
+        "OU": "Moqi IT",
+        "L": "SH",
+        "ST": "SH",
+        "C": "CN"
+        }
+    ]
+}
+

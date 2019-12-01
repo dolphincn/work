@@ -1,0 +1,26 @@
+---
+- name: remove config kernel parameter
+  shell: "echo 0 > /proc/sys/net/ipv4/conf/lo/arp_ignore; \
+          echo 0 > /proc/sys/net/ipv4/conf/lo/arp_announce; \
+          echo 0 > /proc/sys/net/ipv4/conf/all/arp_ignore; \
+          echo 0 > /proc/sys/net/ipv4/conf/all/arp_announce; \
+         "
+  ignore_errors: yes
+
+- name: "remove lvs_dr_rs.conf for lvs real server "
+  file:
+   path: "/etc/sysctl.d/lvs_dr_rs.conf"
+   state: absent
+
+- name: stop labelo
+  shell: systemctl stop labello;systemctl disable labello
+  ignore_errors: yes
+
+- name: "remove labello.service for lvs real server "
+  file:
+   path: "/etc/systemd/system/labello.service"
+   state: absent
+
+- name: systemctl daemon-reload
+  shell: systemctl daemon-reload
+  ignore_errors: yes

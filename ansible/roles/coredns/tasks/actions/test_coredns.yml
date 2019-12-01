@@ -1,0 +1,48 @@
+---
+- name: "add test dns: {{ coredns.test.hostname }}:{{ coredns.test.ip }}"
+  shell: "export ETCDCTL_API=3; \
+          etcdctl --endpoints={{ coredns.etcd.protocol }}://{{ coredns.etcd.endpoints | first }}:{{ coredns.etcd.port }} \
+          --cacert={{ coredns.local.dir }}/ssl/ca.pem \
+          --cert={{ coredns.local.dir }}/ssl/client.pem \
+          --key={{ coredns.local.dir }}/ssl/client-key.pem \
+          put {{ coredns.path | default('/coredns') }}/{{ key_prefix }}/{{ coredns.test.hostname }} \"{\\\"host\\\":\\\"{{ coredns.test.ip }}\\\"}\"
+         "
+  when: coredns.test.ip is defined
+
+
+- name: "add test dns ptr: {{ coredns.test.hostname }}:{{ coredns.test.ip }}"
+  shell: "export ETCDCTL_API=3; \
+          etcdctl --endpoints={{ coredns.etcd.protocol }}://{{ coredns.etcd.endpoints | first }}:{{ coredns.etcd.port }} \
+          --cacert={{ coredns.local.dir }}/ssl/ca.pem \
+          --cert={{ coredns.local.dir }}/ssl/client.pem \
+          --key={{ coredns.local.dir }}/ssl/client-key.pem \
+          put {{ coredns.path | default('/coredns') }}/arpa/in-addr/{{ coredns.test.ip.split('.') | join('/') }} \"{\\\"host\\\":\\\"{{ coredns.test.hostname }}.{{ coredns.domain }}\\\"}\"
+         "
+  when: coredns.test.ip is defined
+
+- name: use host test ip
+  shell: "host {{ coredns.test.ip }} {{ coredns.test.dns_server_ip }}"
+  ignore_errors: yes
+
+- name: use host test hostname
+  shell: "host {{ coredns.test.hostname }}.{{ coredns.domain }} {{ coredns.test.dns_server_ip }}"
+  ignore_errors: yes
+
+- name: use nslookup test ip
+  shell: "nslookup {{ coredns.test.ip }} {{ coredns.test.dns_server_ip }}"
+  ignore_errors: yes
+
+- name: use nslookup test hostname
+  shell: "nslookup {{ coredns.test.hostname }}.{{ coredns.domain }} {{ coredns.test.dns_server_ip }}"
+  ignore_errors: yes
+
+#- name: use dig test ip
+#  shell: "dig +short -x  {{ coredns.test.ip }} @{{ dns_server_ip }}"
+#  ignore_errors: yes
+
+#- name: use dig test hostname
+#  shell: "dig +short -t A {{ coredns.test.hostname }}.{{ coredns.domain }} @{{ dns_server_ip }}"
+#  ignore_errors: yes
+
+
+

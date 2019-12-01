@@ -1,0 +1,85 @@
+---
+- name: "create folder {{ etcd.local.dir }} and {{ etcd.local.dir }}/ssl"
+  file:
+    path: "{{ item }}"
+    owner: root
+    group: root
+    mode: 0644
+    state: directory
+  with_items:
+    - "{{ etcd.local.dir }}"
+    - "{{ etcd.local.dir }}/ssl"
+    #- "{{ etcd.local.dir }}/wal"
+    #- "{{ etcd.local.dir }}/data"
+
+
+- name: "copy etcd image file: {{ etcd.file }}"
+  copy:
+   src: "{{ etcd.file }}"
+   dest: "{{ etcd.local.dir }}"
+   owner: root
+   group: root
+   mode: 0644
+
+- name: copy etcd config
+  template:
+    src: etcd.conf 
+    dest: "{{ etcd.local.dir }}"
+    owner: root
+    group: root
+    mode: 0644
+
+- name: "load docker image {{ etcd.local.dir }}/{{ etcd.file }}"
+  shell: "docker load -i {{ etcd.local.dir }}/{{ etcd.file }}"
+  ignore_errors: True
+
+- name: "ufw allow {{ etcd.client.port }},{{ etcd.peer.port }}/tcp"
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - "{{ etcd.client.port }},{{ etcd.peer.port }}"
+
+- name: run etcd container
+  shell: "docker run -d --name {{ etcd.name | default('etcd') }} \
+          --restart unless-stopped \
+          --log-opt max-size=300M \
+          --log-opt max-file=2 \
+          -p {{ etcd.client.port }}:{{ etcd.client.port }} \
+          -p {{ etcd.peer.port }}:{{ etcd.peer.port }} \
+          -v /etc/localtime:/etc/localtime:ro \
+          -v /etc/timezone:/etc/timezone:ro \
+          -v {{ etcd.local.dir }}:{{ etcd.container.dir }} \
+          {{ etcd.image }} \
+          /usr/local/bin/etcd --config-file {{ etcd.container.dir }}/etcd.conf"
+
+- name: install etcdctl
+  include: install_etcdctl.yml
+
+#- name: "run container: etcd"
+#  docker_container:
+#    name: "{{ inventory_hostname }}"
+#    image: "{{ etcd.image }}"
+#    state: started
+#    restart: yes
+#    restart_policy: always
+#    ports: 
+#      - "2379:2379"
+#      - "2380:2380"
+#    memory: "{{ etcd.container.memory | default('16G') }}"
+#    cpu_quota: "{{ etcd.container.cpu_quota | default('8') }}"
+#    cpuset_cpus: "{{ etcd.container.cpuset_cpus | default('56-64') }}"
+#    ulimits:
+#      - nofile:655300:655300
+#      - nproc:65530:65530
+#    volumes:
+#      - /etc/localtime:/etc/localtime:ro
+#      - /etc/timezone:/etc/timezone:ro
+#      - "{{ etcd.container.dir }}:{{ etcd.local.dir }}"
+#      - "{{ etcd.container.ssl_dir }}:{{ etcd.local.dir }}/ssl"
+#    log_opt:
+#      max-size: 300M
+#      max-file: 2
+#    command: "/usr/local/bin/etcd --config {{ etcd.container.dir }}/etcd.conf"
+

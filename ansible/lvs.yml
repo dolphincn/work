@@ -1,0 +1,32 @@
+---
+- hosts: "{{ host }}"
+  remote_user: root
+  become: yes
+  become_method: sudo
+  become_user: root
+  vars_files:
+    - vars/lvs.yml
+
+  roles:
+    - role: "lvs"
+      action: "remove"
+      tags:
+        - lvs
+        - remove
+    - role: "lvs"
+      action: "install"
+      tags:
+        - lvs
+        - install
+    - role: "lvs"
+      action: "remove_lvs_dr_rs"
+      tags:
+        - rs
+        - remove
+      when: type is defined and type=="dr"
+    - role: "lvs"
+      action: "install_lvs_dr_rs"
+      tags:
+        - rs
+        - install
+      when: type is defined and type=="dr"

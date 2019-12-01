@@ -1,0 +1,66 @@
+---
+- hosts: 127.0.0.1
+  connection: local
+  gather_facts: no
+  vars_files:
+    - vars/etcd_ssl.yml
+  roles:
+    - role: "ssl"
+      action: "cfssl"
+      tags:
+        - ssl
+        - install
+    - role: "ssl"
+      action: "ca"
+      tags:
+        - ssl
+        - ca
+    - role: "ssl"
+      action: "server"
+      tags:
+        - ssl
+        - server
+    - role: "ssl"
+      action: "peer"
+      tags:
+        - ssl
+        - peer
+    - role: "ssl"
+      action: "client"
+      tags:
+        - ssl
+        - client
+
+- hosts: "{{ host }}"
+  remote_user: root
+  become: yes
+  become_method: sudo
+  become_user: root
+  vars_files:
+    - vars/etcd_ssl.yml
+    - vars/etcd.yml
+
+  roles:
+    - role: "ssl"
+      action: "copy"
+      tags:
+        - etcd
+        - copy
+    - role: "etcd"
+      action: "remove"
+      tags:
+        - etcd
+        - remove
+    - role: "etcd"
+      action: "install"
+      tags:
+        - etcd
+        - install
+    - role: "etcd"
+      action: "test"
+      tags:
+        - etcd
+        - test
+      #run_once: yes
+      #delegate_to: "{{ ansible_play_hosts | first }}"
+

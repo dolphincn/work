@@ -1,0 +1,168 @@
+---
+- name: "copy iptables.conf for iptables "
+  copy:
+   src: "{{ item }}"
+   dest: "/etc/modprobe.d/"
+   owner: root
+   group: root
+   mode: 0644
+  with_items:
+    - "ip_vs.conf"
+    - "iptables.conf"
+
+- name: config nf_conntrack
+  lineinfile:
+    path: /etc/modules
+    regexp: "^{{ item }}$"
+    line: "{{ item }}"
+    state: present
+  with_items:
+    - nf_conntrack
+    - nf_conntrack_ipv4
+    - ip_vs
+    - ip_vs_rr
+    - ip_vs_wrr
+    - ip_vs_sh
+    - ip_vs_wlc
+    - ip_vs_lblc
+    - ip_vs_lblcr
+    - ip_vs_lc
+    - ip_vs_fo
+
+- name: "copy lvs.conf for lvs to config kernel parameter "
+  copy:
+   src: "lvs.conf"
+   dest: "/etc/sysctl.d/"
+   owner: root
+   group: root
+   mode: 0644
+
+- name: config kernel parameter for lvs dr
+  shell: "sysctl -p /etc/sysctl.d/lvs_dr.conf"
+  ignore_errors: yes
+
+- name: "create folder {{ lvs.local.dir }}"
+  file:
+    path: "{{ item }}"
+    owner: root
+    group: root
+    mode: 0644
+    state: directory
+  with_items:
+    - "{{ lvs.local.dir }}"
+
+
+- name: "copy lvs files: {{ lvs.imagefile }}"
+  copy:
+   src: "{{ item }}"
+   dest: "{{ lvs.local.dir }}"
+   owner: root
+   group: root
+   mode: 0644
+  with_items:
+    - "{{ lvs.imagefile }}"
+
+
+- name: "copy keepalived config and script"
+  template:
+   src: "{{ item }}"
+   dest: "{{ lvs.local.dir }}"
+   owner: root
+   group: root
+   mode: 0644
+  with_items:
+    - "misc_check.sh"
+    - "app_check.sh"
+    - "keepalived.conf"
+
+
+- name: Update repositories cache and install "ipvsadm" package
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  loop:
+    - ipvsadm
+
+- name: "load docker image {{ lvs.local.dir }}/{{ lvs.imagefile }}"
+  shell: "docker load -i {{ lvs.local.dir }}/{{ lvs.imagefile }}"
+  ignore_errors: True
+
+- name: "ufw allow {{ lvs.ports }}/tcp"
+  ufw:
+    rule: allow
+    port: "{{ item.split('/')[0] }}"
+    proto: "{%- if (item.split('/') | length) >1 -%} {{ item.split('/')[1] }} {%- else -%} tcp {%- endif -%}"
+  loop: "{{ lvs.ports }}"
+
+
+- name: "ufw allow vrrp from 224.0.100.{{ lvs.keepalived.vips[0].ip.split('.')[3] }}"
+  ufw:
+    rule: allow
+    from: "224.0.100.{{ lvs.keepalived.vips[0].ip.split('.')[3] }}"
+    proto: any
+
+
+- name: set fact keepalived_interface
+  set_fact:
+     keepalived_interface: |-
+           "{%- if inventory_hostname==lvs.keepalived.master.hostname -%}
+                {{ lvs.keepalived.master.interface }}
+            {%- else -%}
+                {%- for _tmp_host in lvs.keepalived.backup -%}
+                    {%- if inventory_hostname==_tmp_host.hostname -%} {{ _tmp_host.interface }} {%- endif -%}
+                {%- endfor -%}
+            {%- endif -%}
+           "
+
+- name: set fact keepalived_unicast_src_ip
+  set_fact:
+     keepalived_unicast_src_ip: |-
+           "{%- if inventory_hostname==lvs.keepalived.master.hostname -%}
+                {{ lvs.keepalived.master.ip }}
+            {%- else -%}
+                {%- for _tmp_host in lvs.keepalived.backup -%}
+                    {%- if inventory_hostname==_tmp_host.hostname -%} {{ _tmp_host.ip }} {%- endif -%}
+                {%- endfor -%}
+            {%- endif -%}
+            "
+
+
+- name: set fact keepalived_unicast_peers
+  set_fact:
+    keepalived_unicast_peers: "{{ lvs.keepalived.backup | map(attribute='ip') | list | union(lvs.keepalived.master.ip|list) | difference(keepalived_unicast_src_ip|list) | join(',')  }}"
+
+- name: "show keepalived_unicast_src_ip"
+  debug: msg="{{ keepalived_unicast_src_ip }}"
+
+- name: "show keepalived_unicast_peers"
+  debug: msg="{{ keepalived_unicast_peers }}"
+
+- name: run lvs container
+  shell: 'docker run -d  --name {{ lvs.name | default("lvs") }} --net=host --cap-add NET_ADMIN --privileged=true \
+                 --restart always \
+                 --log-opt max-size=300M \
+                 --log-opt max-file=2 \
+                 {% for _tmp_port in lvs.ports %}
+                 -p {{ _tmp_port.split("/")[0] }}:{{ _tmp_port.split("/")[0] }} {%- if (_tmp_port.split("/") | length)>1 -%} /{{ _tmp_port.split("/")[1] }} {%- endif -%} \
+                 {% endfor %}
+                 -e KEEPALIVED_USE_LVS=true \
+                 -e KEEPALIVED_AUTOCONF={{ lvs.keepalived.auto_config | default("true") }}  \
+                 -e KEEPALIVED_STATE="{%- if inventory_hostname==lvs.keepalived.master.hostname -%} "MASTER" {%- else -%} "BACKUP" {%- endif %}" \
+                 -e KEEPALIVED_INTERFACE="{{ keepalived_interface }}" \
+                 -e KEEPALIVED_UNICAST_SRC_IP="{{ keepalived_unicast_src_ip }}" \
+                 -e KEEPALIVED_UNICAST_PEERS="{{ keepalived_unicast_peers }}" \
+                 -e KEEPALIVED_VIPS="{%- for vip in lvs.keepalived.vips -%} {{ vip.ip }}/{{ vip.netmask }}/{{ vip.broadcast }} {%- if not loop.last -%},{%- endif -%} {%- endfor -%}"  \
+                 -e KEEPALIVED_VIP_REAL_SERVERS="{%- for rs in lvs.virtulservers -%} {{ rs.vip }}:{{ rs.port }}/{{ rs.protocol }}={{ rs.realservers }} {%- if not loop.last -%};{%- endif -%} {%- endfor -%}" \
+                 -e KEEPALIVED_LB_KIND={{ lvs.loadbalance.kind }} \
+                 -e KEEPALIVED_LB_ALGO={{ lvs.loadbalance.algo | default("wrr") }} \
+                 -e KEEPALIVED_AUTO_TCP_CHECK=false \
+                 -e KEEPALIVED_DEBUG=true \
+                 -e KEEPALIVED_CONF_DIR={{ lvs.container.dir | default("/etc/keepalived") }} \
+                 -e KEEPALIVED_AUTH_PASS="{{ lvs.keepalived.auth_pass | default("") }}" \
+                 -e LVS_TIME_OUT="{{ lvs.time_out | default("900 120 300") }}" \
+                 -v /etc/localtime:/etc/localtime:ro \
+                 -v /etc/timezone:/etc/timezone:ro \
+                 -v {{ lvs.local.dir }}:{{ lvs.container.dir | default("/etc/keepalived") }} \
+                 {{ lvs.image }}
+             '

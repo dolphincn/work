@@ -1,0 +1,18 @@
+---
+- name: " Remove {{ ssl_cert_dir }} "
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+   - "{{ ssl_cert_dir }}"
+
+- name: " Remove /usr/bin/cfssl* "
+  file:
+    path: "/usr/bin/{{ item }}"
+    state: absent
+  become: yes
+  with_items:
+    - cfssl
+    - cfssljson
+    - cfssl-certinfo
+

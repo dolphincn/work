@@ -1,0 +1,20 @@
+[Unit]
+Description=Add a label to lo
+Wants=network-online.target
+After=network.target
+ConditionCapability=CAP_NET_ADMIN
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+{% for vip in lvs.keepalived.vips %}
+ExecStart=/sbin/ip addr add {{ vip.ip }}/32 broadcast {{ vip.ip }} label lo:{{ vip.ip.split('.')[3] }} dev lo
+ExecStop=/sbin/ip addr del {{ vip.ip }}/32 broadcast {{ vip.ip }} label lo:{{ vip.ip.split('.')[3] }} dev lo
+{% endfor %}
+
+
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_BROADCAST CAP_NET_RAW CAP_SETUID CAP_SETGID CAP_SETPCAP CAP_CHOWN CAP_DAC_OVERRIDE CAP_FOWNER
+
+[Install]
+WantedBy=multi-user.target
+
